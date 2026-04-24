@@ -1,4 +1,4 @@
-import { Redirect, router } from 'expo-router';
+import { Redirect } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,11 +9,11 @@ import { useAuth } from '@/lib/auth-store';
 import { demoDogs, type Dog } from '@/lib/demo-dogs';
 
 export default function SwipeScreen() {
-  const isSignedIn = useAuth((s) => s.isSignedIn);
+  const session = useAuth((s) => s.session);
   const signOut = useAuth((s) => s.signOut);
   const [matchedDog, setMatchedDog] = useState<Dog | null>(null);
 
-  if (!isSignedIn) {
+  if (!session) {
     return <Redirect href="/" />;
   }
 
@@ -23,9 +23,9 @@ export default function SwipeScreen() {
     }
   };
 
-  const handleSignOut = () => {
-    signOut();
-    router.replace('/');
+  const handleSignOut = async () => {
+    await signOut();
+    // Auth listener clears session; <Redirect> at the top sends us to /.
   };
 
   return (
