@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
 import 'react-native-url-polyfill/auto';
 
 import type { Database } from '@/lib/database.types';
@@ -13,11 +14,24 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+// AsyncStorage touches `window` via localStorage, which breaks Expo Router's
+// SSR pass for web. On web we let Supabase fall back to its own built-in
+// localStorage adapter (which safely no-ops during SSR). On native we use
+// AsyncStorage for persistent session storage.
+const authConfig =
+  Platform.OS === 'web'
+    ? {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: false,
+      }
+    : {
+        storage: AsyncStorage,
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: false,
+      };
+
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storage: AsyncStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-  },
+  auth: authConfig,
 });
