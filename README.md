@@ -9,16 +9,36 @@ See [`/Users/bporter/.claude/plans/help-me-craft-a-radiant-haven.md`](../.claude
 ## Prerequisites
 
 - Node 20+
+- Docker Desktop (running) — required for the local Supabase stack
+- Homebrew (for the Supabase CLI on macOS)
 - iOS Simulator (Xcode) or Expo Go on a physical device
-- A Supabase project (free tier is fine)
 
 ## First-time setup
 
 ```bash
+# 1. Install JS deps
 npm install
+
+# 2. Install Supabase CLI
+brew install supabase/tap/supabase
+
+# 3. Boot the local backend (first run pulls Docker images, ~5-10 min)
+supabase start
+
+# 4. Copy the API URL + anon key from the start output into .env
 cp .env.example .env
-# Fill in EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY
+# Edit .env: set EXPO_PUBLIC_SUPABASE_URL to http://<your-mac-lan-ip>:54321
+#           and EXPO_PUBLIC_SUPABASE_ANON_KEY to the printed anon key
+
+# 5. Generate typed schema (run after every migration)
+supabase gen types typescript --local > lib/database.types.ts
 ```
+
+`supabase start` brings up:
+- Postgres (54322), API gateway (54321), Auth (54321/auth/v1), Storage, Realtime
+- **Studio admin UI**: http://localhost:54323 — view tables, run SQL, manage auth
+- **Inbucket** (local email inbox): http://localhost:54324 — magic-link sign-in emails appear here
+- See `supabase/README.md` for migrations and cloud-deploy instructions.
 
 ## Run
 
