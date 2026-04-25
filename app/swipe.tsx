@@ -1,4 +1,5 @@
-import { Redirect } from 'expo-router';
+import { Image } from 'expo-image';
+import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,7 +13,6 @@ import { useMyDog } from '@/lib/queries/useMyDog';
 
 export default function SwipeScreen() {
   const session = useAuth((s) => s.session);
-  const signOut = useAuth((s) => s.signOut);
   const [matchedDog, setMatchedDog] = useState<Dog | null>(null);
   const { data: myDog, isLoading: isDogLoading } = useMyDog(session?.user.id);
 
@@ -38,11 +38,6 @@ export default function SwipeScreen() {
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    // Auth listener clears session; <Redirect> at the top sends us to /.
-  };
-
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <View style={styles.header}>
@@ -50,8 +45,26 @@ export default function SwipeScreen() {
           <Text style={styles.brand}>Dog Date</Text>
           <Text style={styles.location}>📍 Nearby · 5 mi</Text>
         </View>
-        <Pressable onPress={handleSignOut} hitSlop={12}>
-          <Text style={styles.signOut}>Sign out</Text>
+        <Pressable
+          onPress={() => router.push('/profile')}
+          hitSlop={12}
+          style={({ pressed }) => [styles.profileButton, pressed && { opacity: 0.6 }]}
+          accessibilityLabel="Your profile"
+        >
+          {myDog.primary_photo_url ? (
+            <Image
+              source={{ uri: myDog.primary_photo_url }}
+              style={styles.profileAvatar}
+              contentFit="cover"
+              transition={150}
+            />
+          ) : (
+            <View style={[styles.profileAvatar, styles.profileAvatarFallback]}>
+              <Text style={styles.profileInitial}>
+                {myDog.name.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+          )}
         </Pressable>
       </View>
 
@@ -100,10 +113,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
-  signOut: {
-    color: '#9a9aa0',
-    fontSize: 14,
-    fontWeight: '600',
+  profileButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  profileAvatar: {
+    width: '100%',
+    height: '100%',
+  },
+  profileAvatarFallback: {
+    backgroundColor: '#2a2a30',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileInitial: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
   deck: {
     flex: 1,

@@ -1,4 +1,5 @@
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { useEffect } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -10,11 +11,20 @@ type Props = {
 };
 
 export function VideoPreviewModal({ visible, videoUrl, dogName, onClose }: Props) {
-  const player = useVideoPlayer(visible ? videoUrl : null, (p) => {
+  // The init callback only runs once on player creation — so we set flags
+  // here and kick playback from a separate effect that re-fires on open.
+  const player = useVideoPlayer(videoUrl, (p) => {
     p.loop = true;
     p.muted = true;
-    p.play();
   });
+
+  useEffect(() => {
+    if (visible && videoUrl) {
+      player.play();
+    } else {
+      player.pause();
+    }
+  }, [visible, videoUrl, player]);
 
   if (!videoUrl) return null;
 

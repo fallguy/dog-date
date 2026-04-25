@@ -39,6 +39,7 @@ export default function RootLayout() {
                 <Stack.Screen name="onboarding" options={{ animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="generate-video" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="swipe" options={{ animation: 'fade' }} />
+                <Stack.Screen name="profile" options={{ animation: 'slide_from_right' }} />
               </Stack>
             </>
           ) : (
