@@ -1,20 +1,34 @@
 import { Redirect } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MatchModal } from '@/components/MatchModal';
 import { SwipeDeck } from '@/components/SwipeDeck';
 import { useAuth } from '@/lib/auth-store';
 import { demoDogs, type Dog } from '@/lib/demo-dogs';
+import { useMyDog } from '@/lib/queries/useMyDog';
 
 export default function SwipeScreen() {
   const session = useAuth((s) => s.session);
   const signOut = useAuth((s) => s.signOut);
   const [matchedDog, setMatchedDog] = useState<Dog | null>(null);
+  const { data: myDog, isLoading: isDogLoading } = useMyDog(session?.user.id);
 
   if (!session) {
     return <Redirect href="/" />;
+  }
+  if (isDogLoading) {
+    return (
+      <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#fff" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+  if (!myDog) {
+    return <Redirect href="/onboarding" />;
   }
 
   const handleSwiped = (dog: Dog, direction: 'like' | 'pass') => {
@@ -47,7 +61,7 @@ export default function SwipeScreen() {
       <MatchModal
         visible={!!matchedDog}
         dog={matchedDog}
-        yourDogName="Cooper"
+        yourDogName={myDog.name}
         onClose={() => setMatchedDog(null)}
       />
     </SafeAreaView>
@@ -58,6 +72,11 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: '#0B0B0F',
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   header: {
     flexDirection: 'row',

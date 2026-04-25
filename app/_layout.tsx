@@ -25,6 +25,7 @@ export default function RootLayout() {
           {isInitialized ? (
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="index" />
+              <Stack.Screen name="onboarding" options={{ animation: 'slide_from_bottom' }} />
               <Stack.Screen name="swipe" options={{ animation: 'fade' }} />
             </Stack>
           ) : (
