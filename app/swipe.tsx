@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MatchModal } from '@/components/MatchModal';
 import { SwipeDeck } from '@/components/SwipeDeck';
+import { VideoStatusBanner } from '@/components/VideoStatusBanner';
 import { useAuth } from '@/lib/auth-store';
 import { demoDogs, type Dog } from '@/lib/demo-dogs';
 import { useMyDog } from '@/lib/queries/useMyDog';
@@ -53,6 +54,8 @@ export default function SwipeScreen() {
           <Text style={styles.signOut}>Sign out</Text>
         </Pressable>
       </View>
+
+      <VideoStatusBanner />
 
       <View style={styles.deck}>
         <SwipeDeck dogs={demoDogs} onSwiped={handleSwiped} />

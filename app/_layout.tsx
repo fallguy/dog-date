@@ -8,7 +8,16 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { useAuth } from '@/lib/auth-store';
+import { useVideoPoller } from '@/lib/hooks/useVideoPoller';
 import { queryClient } from '@/lib/query-client';
+
+// Tiny side-effect-only component that runs the global video polling
+// loop while the user has a pending generation. Mounted once inside the
+// QueryClientProvider so it has access to the query cache.
+function VideoPoller() {
+  useVideoPoller();
+  return null;
+}
 
 export default function RootLayout() {
   const isInitialized = useAuth((s) => s.isInitialized);
@@ -23,12 +32,15 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider value={DarkTheme}>
           {isInitialized ? (
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="index" />
-              <Stack.Screen name="onboarding" options={{ animation: 'slide_from_bottom' }} />
-              <Stack.Screen name="generate-video" options={{ animation: 'slide_from_right' }} />
-              <Stack.Screen name="swipe" options={{ animation: 'fade' }} />
-            </Stack>
+            <>
+              <VideoPoller />
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen name="onboarding" options={{ animation: 'slide_from_bottom' }} />
+                <Stack.Screen name="generate-video" options={{ animation: 'slide_from_right' }} />
+                <Stack.Screen name="swipe" options={{ animation: 'fade' }} />
+              </Stack>
+            </>
           ) : (
             <View
               style={{
