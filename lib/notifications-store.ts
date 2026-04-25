@@ -1,58 +1,46 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { create } from 'zustand';
-import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
+
+const STORAGE_KEY = 'dog-date-notifications';
 
 type NotificationsState = {
-  /**
-   * The most recent ai_video_url that the user has acknowledged (dismissed
-   * the banner OR opened the preview modal). When the dog's current
-   * ai_video_url matches this value, the "ready" banner stays hidden — so
-   * returning users with an already-seen video don't get re-prompted.
-   */
   lastSeenVideoUrl: string | null;
+  _hasHydrated: boolean;
   markSeen: (url: string) => void;
+  _hydrate: () => Promise<void>;
 };
 
-// Expo Router does an SSR pass on web where `window` is undefined. Wrap
-// AsyncStorage so calls during that phase no-op gracefully; the store
-// will hydrate once the client mounts.
-const safeStorage: StateStorage = {
-  getItem: async (name) => {
-    if (Platform.OS === 'web' && typeof window === 'undefined') return null;
-    try {
-      return await AsyncStorage.getItem(name);
-    } catch {
-      return null;
-    }
-  },
-  setItem: async (name, value) => {
-    if (Platform.OS === 'web' && typeof window === 'undefined') return;
-    try {
-      await AsyncStorage.setItem(name, value);
-    } catch {
-      // ignore
-    }
-  },
-  removeItem: async (name) => {
-    if (Platform.OS === 'web' && typeof window === 'undefined') return;
-    try {
-      await AsyncStorage.removeItem(name);
-    } catch {
-      // ignore
-    }
-  },
-};
+const canUseStorage = () =>
+  !(Platform.OS === 'web' && typeof window === 'undefined');
 
-export const useNotifications = create<NotificationsState>()(
-  persist(
-    (set) => ({
-      lastSeenVideoUrl: null,
-      markSeen: (url) => set({ lastSeenVideoUrl: url }),
-    }),
-    {
-      name: 'dog-date-notifications',
-      storage: createJSONStorage(() => safeStorage),
+export const useNotifications = create<NotificationsState>((set, get) => ({
+  lastSeenVideoUrl: null,
+  _hasHydrated: false,
+  markSeen: (url) => {
+    set({ lastSeenVideoUrl: url });
+    if (!canUseStorage()) return;
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ lastSeenVideoUrl: url })).catch(() => {});
+  },
+  _hydrate: async () => {
+    if (get()._hasHydrated || !canUseStorage()) {
+      set({ _hasHydrated: true });
+      return;
     }
-  )
-);
+    try {
+      const raw = await AsyncStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { lastSeenVideoUrl?: string | null };
+        set({ lastSeenVideoUrl: parsed.lastSeenVideoUrl ?? null, _hasHydrated: true });
+      } else {
+        set({ _hasHydrated: true });
+      }
+    } catch {
+      set({ _hasHydrated: true });
+    }
+  },
+}));
+
+if (canUseStorage()) {
+  useNotifications.getState()._hydrate();
+}
