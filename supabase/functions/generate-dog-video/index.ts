@@ -9,7 +9,13 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const MAX_VIDEOS_PER_DOG = parseInt(Deno.env.get('MAX_VIDEOS_PER_DOG') ?? '3', 10);
 
+// Submit goes to the operation route, but Fal's status/result endpoints
+// live at the parent app slug (no /lite/image-to-video). Both must match
+// the model we're calling. fal-poll/index.ts uses FAL_APP for queries.
 const FAL_MODEL = 'fal-ai/veo3.1/lite/image-to-video';
+// Veo 3.1 Lite only accepts 'auto', '16:9', or '9:16' (NOT '1:1'). 9:16
+// fits the swipe card naturally — full-bleed vertical photo backdrop.
+const FAL_ASPECT_RATIO = '9:16';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -75,11 +81,14 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Already generating' }, 409);
     }
 
-    // Cost cap: max generations per dog
+    // Cost cap: count only jobs that succeeded or are in flight. Failed
+    // attempts (often our bug, not the user's fault) shouldn't burn one
+    // of their tries.
     const { count, error: countError } = await adminClient
       .from('video_jobs')
       .select('id', { count: 'exact', head: true })
-      .eq('dog_id', dog_id);
+      .eq('dog_id', dog_id)
+      .in('status', ['pending', 'ready']);
     if (countError) {
       return jsonResponse({ error: countError.message }, 500);
     }
@@ -117,7 +126,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         image_url: dataUri,
         prompt: prompt.trim(),
-        aspect_ratio: '1:1',
+        aspect_ratio: FAL_ASPECT_RATIO,
       }),
     });
 

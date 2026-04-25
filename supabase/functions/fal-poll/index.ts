@@ -7,7 +7,11 @@ const FAL_KEY = Deno.env.get('FAL_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
-const FAL_MODEL = 'fal-ai/veo3.1/lite/image-to-video';
+// Fal Queue API quirk: submission goes to the operation path
+// (`fal-ai/veo3.1/lite/image-to-video`), but status and result calls
+// live on the parent app slug. Hardcoded here; if we change models,
+// update this together with FAL_MODEL in generate-dog-video.
+const FAL_APP = 'fal-ai/veo3.1';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -73,7 +77,7 @@ Deno.serve(async (req) => {
 
     // Ask Fal for status
     const statusResp = await fetch(
-      `https://queue.fal.run/${FAL_MODEL}/requests/${job.fal_request_id}/status`,
+      `https://queue.fal.run/${FAL_APP}/requests/${job.fal_request_id}/status`,
       {
         headers: { Authorization: `Key ${FAL_KEY}` },
       }
@@ -99,7 +103,7 @@ Deno.serve(async (req) => {
     if (falStatus === 'COMPLETED') {
       // Fetch the result
       const resultResp = await fetch(
-        `https://queue.fal.run/${FAL_MODEL}/requests/${job.fal_request_id}`,
+        `https://queue.fal.run/${FAL_APP}/requests/${job.fal_request_id}`,
         { headers: { Authorization: `Key ${FAL_KEY}` } }
       );
       if (!resultResp.ok) {
