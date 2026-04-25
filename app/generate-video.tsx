@@ -26,7 +26,9 @@ const POLL_INTERVAL_MS = 5_000;
 
 export default function GenerateVideoScreen() {
   const session = useAuth((s) => s.session);
-  const { data: dog, refetch } = useMyDog(session?.user.id);
+  const { data: dog, isLoading: isDogLoading, refetch } = useMyDog(
+    session?.user.id
+  );
 
   const [prompt, setPrompt] = useState('');
   const [scenario, setScenario] = useState<string>('custom');
@@ -53,6 +55,15 @@ export default function GenerateVideoScreen() {
   }, []);
 
   if (!session) return <Redirect href="/" />;
+  if (isDogLoading) {
+    return (
+      <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+        <View style={styles.loadingCenter}>
+          <ActivityIndicator size="large" color="#fff" />
+        </View>
+      </SafeAreaView>
+    );
+  }
   if (!dog) return <Redirect href="/onboarding" />;
 
   // If we already have a video on the dog (e.g., re-entering this screen)
@@ -310,6 +321,11 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: '#0B0B0F',
+  },
+  loadingCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   content: {
     padding: 24,

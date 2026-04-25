@@ -1,7 +1,8 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { Redirect, router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -17,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/lib/auth-store';
 import type { Database } from '@/lib/database.types';
+import { useMyDog } from '@/lib/queries/useMyDog';
 import { uploadDogPhoto } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 
@@ -28,6 +30,10 @@ const ENERGIES: DogEnergy[] = ['Chill', 'Medium', 'High'];
 
 export default function OnboardingScreen() {
   const session = useAuth((s) => s.session);
+  const queryClient = useQueryClient();
+  const { data: existingDog, isLoading: isCheckingExisting } = useMyDog(
+    session?.user.id
+  );
 
   const [name, setName] = useState('');
   const [breed, setBreed] = useState('');
@@ -37,9 +43,33 @@ export default function OnboardingScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Pre-fill from the existing dog row exactly once.
+  const hasPrefilled = useRef(false);
+  useEffect(() => {
+    if (!hasPrefilled.current && existingDog) {
+      hasPrefilled.current = true;
+      setName(existingDog.name);
+      setBreed(existingDog.breed);
+      setSize(existingDog.size);
+      setEnergy(existingDog.energy);
+    }
+  }, [existingDog]);
+
   if (!session) {
     return <Redirect href="/" />;
   }
+
+  if (isCheckingExisting) {
+    return (
+      <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+        <View style={styles.loadingCenter}>
+          <ActivityIndicator size="large" color="#fff" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const isEditing = !!existingDog;
 
   const pickPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -62,42 +92,61 @@ export default function OnboardingScreen() {
   const handleSubmit = async () => {
     if (!name.trim()) return setError('Your dog needs a name');
     if (!breed.trim()) return setError('What breed?');
-    if (!photoUri) return setError('Please add a photo of your dog');
+    // If editing an existing dog and the user didn't pick a new photo,
+    // we keep the photo on file. For a brand-new dog, a photo is required.
+    if (!photoUri && !existingDog?.primary_photo_url) {
+      return setError('Please add a photo of your dog');
+    }
     setError(null);
     setBusy(true);
     try {
-      // 1. Create the dog row (gets us an id to use in the storage path)
-      const { data: inserted, error: insertError } = await supabase
+      const userId = session.user.id;
+      let dogId: string;
+
+      // 1. Upsert by owner_id (the unique constraint). This handles both
+      //    the fresh-create case and the "previous attempt failed
+      //    mid-flight, retry" case without crashing on the unique index.
+      const { data: upserted, error: upsertError } = await supabase
         .from('dogs')
-        .insert({
-          owner_id: session.user.id,
-          name: name.trim(),
-          breed: breed.trim(),
-          size,
-          energy,
-        })
+        .upsert(
+          {
+            ...(existingDog ? { id: existingDog.id } : {}),
+            owner_id: userId,
+            name: name.trim(),
+            breed: breed.trim(),
+            size,
+            energy,
+          },
+          { onConflict: 'owner_id' }
+        )
         .select('id')
         .single();
-      if (insertError || !inserted) {
-        throw new Error(insertError?.message ?? 'Failed to create dog');
+      if (upsertError || !upserted) {
+        throw new Error(upsertError?.message ?? 'Failed to save dog');
+      }
+      dogId = upserted.id;
+
+      // 2. Upload a new photo if the user picked one.
+      if (photoUri && !photoUri.startsWith('http')) {
+        const publicUrl = await uploadDogPhoto({
+          userId,
+          dogId,
+          localUri: photoUri,
+        });
+        const { error: photoUpdateError } = await supabase
+          .from('dogs')
+          .update({
+            primary_photo_url: publicUrl,
+            photos: [publicUrl],
+          })
+          .eq('id', dogId);
+        if (photoUpdateError) throw new Error(photoUpdateError.message);
       }
 
-      // 2. Upload photo using the new dog's id in the path
-      const publicUrl = await uploadDogPhoto({
-        userId: session.user.id,
-        dogId: inserted.id,
-        localUri: photoUri,
+      // 3. Refresh the cached dog so /generate-video sees the latest row.
+      await queryClient.invalidateQueries({
+        queryKey: ['my-dog', userId],
       });
-
-      // 3. Patch the dog row with photo URLs
-      const { error: updateError } = await supabase
-        .from('dogs')
-        .update({
-          primary_photo_url: publicUrl,
-          photos: [publicUrl],
-        })
-        .eq('id', inserted.id);
-      if (updateError) throw new Error(updateError.message);
 
       router.replace('/generate-video');
     } catch (e) {
@@ -117,25 +166,41 @@ export default function OnboardingScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.title}>Tell us about your dog</Text>
+          <Text style={styles.title}>
+            {isEditing ? `Update ${existingDog!.name}` : 'Tell us about your dog'}
+          </Text>
           <Text style={styles.subtitle}>
             This is what other owners will see when you come up in their deck.
           </Text>
 
-          <Pressable
-            style={[styles.photoSlot, photoUri && styles.photoSlotFilled]}
-            onPress={pickPhoto}
-            disabled={busy}
-          >
-            {photoUri ? (
-              <Image source={{ uri: photoUri }} style={styles.photo} contentFit="cover" />
-            ) : (
-              <>
-                <Text style={styles.photoEmoji}>📷</Text>
-                <Text style={styles.photoLabel}>Add a photo</Text>
-              </>
-            )}
-          </Pressable>
+          {(() => {
+            const previewUri = photoUri ?? existingDog?.primary_photo_url ?? null;
+            return (
+              <Pressable
+                style={[styles.photoSlot, previewUri && styles.photoSlotFilled]}
+                onPress={pickPhoto}
+                disabled={busy}
+              >
+                {previewUri ? (
+                  <>
+                    <Image
+                      source={{ uri: previewUri }}
+                      style={styles.photo}
+                      contentFit="cover"
+                    />
+                    <View style={styles.photoChangeOverlay}>
+                      <Text style={styles.photoChangeText}>Tap to change</Text>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.photoEmoji}>📷</Text>
+                    <Text style={styles.photoLabel}>Add a photo</Text>
+                  </>
+                )}
+              </Pressable>
+            );
+          })()}
 
           <Field label="Name">
             <TextInput
@@ -192,9 +257,21 @@ export default function OnboardingScreen() {
             {busy ? (
               <ActivityIndicator color="#000" />
             ) : (
-              <Text style={styles.primaryText}>Start swiping</Text>
+              <Text style={styles.primaryText}>
+                {isEditing ? 'Save and continue' : 'Continue'}
+              </Text>
             )}
           </Pressable>
+
+          {isEditing && (
+            <Pressable
+              style={styles.linkButton}
+              onPress={() => router.replace('/generate-video')}
+              disabled={busy}
+            >
+              <Text style={styles.linkText}>Skip — go to video</Text>
+            </Pressable>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -247,6 +324,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0B0B0F',
   },
+  loadingCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   content: {
     padding: 24,
     paddingBottom: 40,
@@ -282,6 +364,29 @@ const styles = StyleSheet.create({
   photo: {
     width: '100%',
     height: '100%',
+  },
+  photoChangeOverlay: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  photoChangeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  linkButton: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  linkText: {
+    color: '#9a9aa0',
+    fontSize: 15,
+    fontWeight: '600',
   },
   photoEmoji: {
     fontSize: 48,
