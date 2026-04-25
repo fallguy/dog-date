@@ -8,6 +8,8 @@ export type Dog = {
   tags: string[];
   bio: string;
   photo: string;
+  /** AI-generated signature video. When set, the card auto-plays this loop instead of `photo`. */
+  videoUrl?: string;
   ownerName: string;
   ownerBio: string;
   distanceMiles: number;

@@ -99,7 +99,7 @@ export default function OnboardingScreen() {
         .eq('id', inserted.id);
       if (updateError) throw new Error(updateError.message);
 
-      router.replace('/swipe');
+      router.replace('/generate-video');
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Something went wrong';
       setError(msg);

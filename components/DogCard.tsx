@@ -1,5 +1,6 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { Dog } from '@/lib/demo-dogs';
@@ -9,6 +10,14 @@ type Props = {
 };
 
 export function DogCard({ dog }: Props) {
+  // expo-video requires a stable hook call regardless of whether we have a URL.
+  // Pass null when there's no video; the player simply stays idle.
+  const player = useVideoPlayer(dog.videoUrl ?? null, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
+  });
+
   return (
     <View style={styles.card}>
       <Image
@@ -18,11 +27,27 @@ export function DogCard({ dog }: Props) {
         transition={200}
       />
 
+      {dog.videoUrl && (
+        <VideoView
+          style={styles.photo}
+          player={player}
+          contentFit="cover"
+          allowsFullscreen={false}
+          nativeControls={false}
+        />
+      )}
+
       <LinearGradient
         colors={['transparent', 'rgba(0,0,0,0.15)', 'rgba(0,0,0,0.92)']}
         locations={[0, 0.55, 1]}
         style={styles.overlay}
       />
+
+      {dog.videoUrl && (
+        <View style={styles.aiBadge}>
+          <Text style={styles.aiBadgeText}>✨ AI</Text>
+        </View>
+      )}
 
       <View style={styles.distanceBadge}>
         <Text style={styles.distanceText}>{dog.distanceMiles} mi</Text>
@@ -78,6 +103,23 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
+  },
+  aiBadge: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  aiBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   distanceBadge: {
     position: 'absolute',

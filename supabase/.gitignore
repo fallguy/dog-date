@@ -6,3 +6,8 @@
 .env.keys
 .env.local
 .env.*.local
+
+# Edge function secrets (never commit FAL_KEY, etc.) — but keep .env.example
+functions/.env
+functions/.env.local
+functions/.env.*.local
