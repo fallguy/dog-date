@@ -1,5 +1,7 @@
 # Dog Date — Project Instructions
 
+**Read first:** `.claude/skills/dog-date/SKILL.md` — the project primer. It orients you on the codebase, gotchas, conventions, and points to deeper references for TDD, schema, UI/theme, auth/demo, and the AI video pipeline. Do that before touching code.
+
 See the engineering handoff at `/Users/bporter/.claude/plans/help-me-craft-a-radiant-haven.md` for full context on stack, build order, and known gotchas.
 
 ## Web-bundle landmines
