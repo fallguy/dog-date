@@ -1,56 +1,71 @@
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Dog } from '@/lib/demo-dogs';
+import { colors, fonts, radii, tracking } from '@/lib/theme';
 
 type Props = {
   visible: boolean;
   dog: Dog | null;
   yourDogName?: string;
   onClose: () => void;
+  onSayHi?: () => void;
 };
 
-export function MatchModal({ visible, dog, yourDogName = 'Your pup', onClose }: Props) {
+export function MatchModal({
+  visible,
+  dog,
+  yourDogName = 'Your pup',
+  onClose,
+  onSayHi,
+}: Props) {
   if (!dog) return null;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+      <View style={styles.outer}>
         <View style={styles.card}>
-          <Text style={styles.title}>It&apos;s a match!</Text>
-          <Text style={styles.subtitle}>
-            {yourDogName} and {dog.name} both want to play.
-          </Text>
+          <View style={styles.photoRegion}>
+            <Image
+              source={{ uri: dog.photo }}
+              style={styles.fill}
+              contentFit="cover"
+              transition={200}
+            />
 
-          <View style={styles.photos}>
-            <View style={[styles.photoWrap, styles.photoLeft]}>
-              <View style={styles.photoPlaceholder}>
-                <Text style={styles.placeholderEmoji}>🐾</Text>
-              </View>
-            </View>
-            <View style={[styles.photoWrap, styles.photoRight]}>
-              <Image
-                source={{ uri: dog.photo }}
-                style={styles.photo}
-                contentFit="cover"
-                transition={200}
-              />
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.7)']}
+              locations={[0.5, 1]}
+              style={styles.fill}
+              pointerEvents="none"
+            />
+
+            <View style={styles.photoOverlay} pointerEvents="none">
+              <Text style={styles.eyebrow}>MATCHED</Text>
+              <Text style={styles.headline} numberOfLines={2}>
+                {`${yourDogName} & ${dog.name}`}
+              </Text>
             </View>
           </View>
 
-          <Pressable
-            style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]}
-            onPress={onClose}
-          >
-            <Text style={styles.primaryText}>Say hi to {dog.ownerName}</Text>
-          </Pressable>
+          <View style={styles.body}>
+            <Text style={styles.subtitle}>You both swiped right.</Text>
 
-          <Pressable
-            style={({ pressed }) => [styles.secondaryButton, pressed && styles.buttonPressed]}
-            onPress={onClose}
-          >
-            <Text style={styles.secondaryText}>Keep swiping</Text>
-          </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
+              onPress={onSayHi ?? onClose}
+            >
+              <Text style={styles.primaryText}>{`Say hi to ${dog.ownerName}`}</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
+              onPress={onClose}
+            >
+              <Text style={styles.secondaryText}>Keep swiping</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
     </Modal>
@@ -58,93 +73,86 @@ export function MatchModal({ visible, dog, yourDogName = 'Your pup', onClose }: 
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
+  outer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.75)',
-    justifyContent: 'center',
+    backgroundColor: colors.scrim,
     alignItems: 'center',
+    justifyContent: 'center',
     padding: 24,
   },
   card: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: '#15151b',
-    borderRadius: 28,
-    padding: 28,
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 1,
-    borderColor: '#2a2a30',
+    backgroundColor: colors.bg,
+    borderRadius: radii.cardLarge,
+    overflow: 'hidden',
   },
-  title: {
-    color: '#fff',
-    fontSize: 34,
-    fontWeight: '900',
-    letterSpacing: -0.5,
+  photoRegion: {
+    width: '100%',
+    aspectRatio: 4 / 5,
+    position: 'relative',
+  },
+  fill: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  photoOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 20,
+    paddingBottom: 16,
+  },
+  eyebrow: {
+    fontFamily: fonts.monoBold,
+    fontSize: 11,
+    letterSpacing: tracking.monoLoose,
+    color: colors.accent,
+    textTransform: 'uppercase',
+  },
+  headline: {
+    marginTop: 6,
+    fontFamily: fonts.displayHeavy,
+    fontSize: 30,
+    lineHeight: 32,
+    color: colors.text,
+    letterSpacing: tracking.tightDisplay,
+  },
+  body: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 24,
+    gap: 12,
   },
   subtitle: {
-    color: '#bfbfc8',
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  photos: {
-    flexDirection: 'row',
-    marginVertical: 12,
-    height: 140,
-  },
-  photoWrap: {
-    width: 120,
-    height: 140,
-    borderRadius: 18,
-    overflow: 'hidden',
-    borderWidth: 3,
-    borderColor: '#15151b',
-  },
-  photoLeft: {
-    marginRight: -20,
-    transform: [{ rotate: '-6deg' }],
-    backgroundColor: '#2a2a30',
-  },
-  photoRight: {
-    transform: [{ rotate: '6deg' }],
-  },
-  photoPlaceholder: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#2a2a30',
-  },
-  placeholderEmoji: {
-    fontSize: 48,
-  },
-  photo: {
-    width: '100%',
-    height: '100%',
+    fontFamily: fonts.body,
+    fontSize: 15,
+    lineHeight: 21,
+    color: colors.textSoft,
   },
   primaryButton: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-    width: '100%',
     marginTop: 8,
+    backgroundColor: colors.accent,
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderRadius: radii.frame,
   },
   primaryText: {
-    color: '#000',
-    fontWeight: '700',
-    fontSize: 16,
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    color: colors.accentInk,
+    letterSpacing: tracking.body,
   },
   secondaryButton: {
     paddingVertical: 12,
     alignItems: 'center',
-    width: '100%',
   },
   secondaryText: {
-    color: '#9a9aa0',
-    fontWeight: '600',
-    fontSize: 15,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 14,
+    color: colors.textSoft,
   },
-  buttonPressed: {
+  pressed: {
     opacity: 0.75,
   },
 });

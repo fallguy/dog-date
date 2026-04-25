@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/lib/auth-store';
 import { supabase } from '@/lib/supabase';
+import { colors, fonts, tracking, radii, spacing } from '@/lib/theme';
 
 type Step = 'email' | 'code';
 
@@ -51,6 +52,20 @@ export default function SignInScreen() {
     setStep('code');
   };
 
+  const handleResend = async () => {
+    if (busy) return;
+    setError(null);
+    setBusy(true);
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: true },
+    });
+    setBusy(false);
+    if (otpError) {
+      setError(otpError.message);
+    }
+  };
+
   const handleVerify = async () => {
     const cleaned = token.trim();
     if (cleaned.length < 6) {
@@ -79,94 +94,101 @@ export default function SignInScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.hero}>
-          <Text style={styles.logo}>🐾</Text>
-          <Text style={styles.title}>Dog Date</Text>
-          <Text style={styles.tagline}>Playdates for pups. Friends for you.</Text>
-        </View>
+        <View style={styles.column}>
+          <View style={styles.topSpacer} />
 
-        <View style={styles.footer}>
-          {step === 'email' ? (
-            <>
-              <Text style={styles.inputLabel}>Email</Text>
-              <TextInput
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="you@example.com"
-                placeholderTextColor="#5a5a60"
-                autoCapitalize="none"
-                autoComplete="email"
-                keyboardType="email-address"
-                autoCorrect={false}
-                editable={!busy}
-              />
-              {error && <Text style={styles.error}>{error}</Text>}
-              <Pressable
-                style={({ pressed }) => [
-                  styles.primaryButton,
-                  pressed && styles.buttonPressed,
-                  busy && styles.buttonDisabled,
-                ]}
-                onPress={handleSendCode}
-                disabled={busy}
-              >
-                {busy ? (
-                  <ActivityIndicator color="#000" />
-                ) : (
-                  <Text style={styles.primaryText}>Send sign-in code</Text>
-                )}
-              </Pressable>
-            </>
-          ) : (
-            <>
-              <Text style={styles.inputLabel}>
-                We sent a code to{' '}
-                <Text style={{ color: '#fff', fontWeight: '700' }}>{email}</Text>
-              </Text>
-              <TextInput
-                style={[styles.input, styles.codeInput]}
-                value={token}
-                onChangeText={setToken}
-                placeholder="123456"
-                placeholderTextColor="#5a5a60"
-                autoCapitalize="none"
-                keyboardType="number-pad"
-                maxLength={6}
-                editable={!busy}
-                textContentType="oneTimeCode"
-              />
-              {error && <Text style={styles.error}>{error}</Text>}
-              <Pressable
-                style={({ pressed }) => [
-                  styles.primaryButton,
-                  pressed && styles.buttonPressed,
-                  busy && styles.buttonDisabled,
-                ]}
-                onPress={handleVerify}
-                disabled={busy}
-              >
-                {busy ? (
-                  <ActivityIndicator color="#000" />
-                ) : (
-                  <Text style={styles.primaryText}>Sign in</Text>
-                )}
-              </Pressable>
-              <Pressable
-                style={styles.linkButton}
-                onPress={() => {
-                  setStep('email');
-                  setToken('');
-                  setError(null);
-                }}
-              >
-                <Text style={styles.linkText}>Use a different email</Text>
-              </Pressable>
-            </>
-          )}
+          <View style={styles.wordmarkBlock}>
+            <Text style={styles.wordmark}>DOG DATE</Text>
+            <View style={styles.wordmarkUnderline} />
+          </View>
+
+          <Text style={styles.headline}>Find your dog's people.</Text>
+          <Text style={styles.subline}>
+            Swipe through dogs nearby. Match if it's mutual.
+          </Text>
+
+          <View style={styles.formBlock}>
+            {step === 'email' ? (
+              <>
+                <Text style={styles.fieldLabel}>EMAIL</Text>
+                <TextInput
+                  style={styles.input}
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="you@example.com"
+                  placeholderTextColor={colors.textMute}
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  keyboardType="email-address"
+                  autoCorrect={false}
+                  editable={!busy}
+                />
+                {error && <Text style={styles.error}>{error}</Text>}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.primaryButton,
+                    pressed && styles.buttonPressed,
+                    busy && styles.buttonDisabled,
+                  ]}
+                  onPress={handleSendCode}
+                  disabled={busy}
+                >
+                  {busy ? (
+                    <ActivityIndicator color={colors.accentInk} />
+                  ) : (
+                    <Text style={styles.primaryText}>Send sign-in code</Text>
+                  )}
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Text style={styles.fieldLabel}>6-DIGIT CODE</Text>
+                <TextInput
+                  style={styles.input}
+                  value={token}
+                  onChangeText={setToken}
+                  placeholder="123456"
+                  placeholderTextColor={colors.textMute}
+                  autoCapitalize="none"
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  editable={!busy}
+                  textContentType="oneTimeCode"
+                />
+                <Pressable
+                  style={styles.resendButton}
+                  onPress={handleResend}
+                  disabled={busy}
+                >
+                  <Text style={styles.resendText}>Resend code</Text>
+                </Pressable>
+                {error && <Text style={styles.error}>{error}</Text>}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.primaryButton,
+                    pressed && styles.buttonPressed,
+                    busy && styles.buttonDisabled,
+                  ]}
+                  onPress={handleVerify}
+                  disabled={busy}
+                >
+                  {busy ? (
+                    <ActivityIndicator color={colors.accentInk} />
+                  ) : (
+                    <Text style={styles.primaryText}>Sign in</Text>
+                  )}
+                </Pressable>
+              </>
+            )}
+          </View>
+
+          <View style={{ flex: 1 }} />
 
           <Text style={styles.legal}>
-            By continuing you agree to our Terms and Privacy Policy.
+            By continuing you agree to our{' '}
+            <Text style={styles.legalLink}>Terms</Text>
+            {' '}and{' '}
+            <Text style={styles.legalLink}>Privacy Policy</Text>.
           </Text>
         </View>
       </KeyboardAvoidingView>
@@ -177,96 +199,125 @@ export default function SignInScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#0B0B0F',
-    paddingHorizontal: 24,
-    justifyContent: 'space-between',
+    backgroundColor: colors.bg,
   },
-  hero: {
+  column: {
     flex: 1,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xl,
+    alignItems: 'stretch',
+  },
+  topSpacer: {
+    height: '30%',
+  },
+  wordmarkBlock: {
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
   },
-  logo: {
-    fontSize: 80,
-    marginBottom: 12,
-  },
-  title: {
-    color: '#fff',
-    fontSize: 48,
-    fontWeight: '800',
-    letterSpacing: -1,
-  },
-  tagline: {
-    color: '#9a9aa0',
-    fontSize: 18,
+  wordmark: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: colors.text,
+    letterSpacing: tracking.loose,
+    textTransform: 'uppercase',
     textAlign: 'center',
   },
-  footer: {
-    gap: 12,
-    paddingBottom: 24,
+  wordmarkUnderline: {
+    width: 24,
+    height: 1,
+    backgroundColor: colors.accent,
+    marginTop: 14,
+    alignSelf: 'center',
   },
-  inputLabel: {
-    color: '#9a9aa0',
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: -4,
+  headline: {
+    fontFamily: fonts.displayHeavy,
+    fontSize: 38,
+    lineHeight: 42,
+    color: colors.text,
+    letterSpacing: tracking.tightDisplay,
+    textAlign: 'center',
+    marginTop: 64,
+    maxWidth: 320,
+    alignSelf: 'center',
+  },
+  subline: {
+    fontFamily: fonts.body,
+    fontSize: 16,
+    lineHeight: 22,
+    color: colors.textSoft,
+    textAlign: 'center',
+    marginTop: 12,
+    maxWidth: 320,
+    alignSelf: 'center',
+  },
+  formBlock: {
+    marginTop: 56,
+  },
+  fieldLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.textMute,
+    letterSpacing: tracking.monoLoose,
+    textTransform: 'uppercase',
+    marginBottom: 8,
   },
   input: {
-    backgroundColor: '#1a1a20',
-    borderRadius: 14,
+    backgroundColor: colors.surface,
+    color: colors.text,
+    fontFamily: fonts.body,
+    fontSize: 16,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    fontSize: 17,
-    color: '#fff',
+    borderRadius: radii.frame,
     borderWidth: 1,
-    borderColor: '#2a2a30',
-  },
-  codeInput: {
-    fontSize: 28,
-    fontWeight: '700',
-    textAlign: 'center',
-    letterSpacing: 6,
+    borderColor: colors.divider,
   },
   primaryButton: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
+    backgroundColor: colors.accent,
     paddingVertical: 16,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    marginTop: 4,
+    borderRadius: radii.frame,
+    marginTop: 16,
   },
   primaryText: {
-    color: '#000',
-    fontSize: 17,
-    fontWeight: '700',
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    color: colors.accentInk,
+    letterSpacing: tracking.body,
   },
   buttonPressed: {
-    opacity: 0.75,
+    opacity: 0.85,
   },
   buttonDisabled: {
     opacity: 0.55,
   },
-  linkButton: {
-    paddingVertical: 12,
-    alignItems: 'center',
+  resendButton: {
+    paddingVertical: spacing.md,
+    alignItems: 'flex-start',
   },
-  linkText: {
-    color: '#9a9aa0',
-    fontSize: 15,
-    fontWeight: '600',
+  resendText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13,
+    color: colors.textSoft,
   },
   error: {
-    color: '#f87171',
-    fontSize: 14,
-    fontWeight: '500',
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13,
+    color: colors.pass,
+    marginTop: spacing.sm,
   },
   legal: {
-    color: '#6a6a70',
+    fontFamily: fonts.body,
     fontSize: 12,
+    lineHeight: 18,
+    color: colors.textMute,
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 'auto',
+    marginBottom: 24,
+    paddingHorizontal: 24,
+  },
+  legalLink: {
+    color: colors.text,
+    textDecorationLine: 'underline',
   },
 });

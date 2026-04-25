@@ -1,86 +1,95 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { Dog } from '@/lib/demo-dogs';
+import { colors, fonts, radii, tracking } from '@/lib/theme';
 
 type Props = {
   dog: Dog;
 };
 
 export function DogCard({ dog }: Props) {
-  // expo-video requires a stable hook call regardless of whether we have a URL.
-  // Pass null when there's no video; the player simply stays idle.
+  // The `useVideoPlayer` init callback fires only on first creation; when the
+  // deck advances and `dog.videoUrl` changes, we need to re-call play()
+  // ourselves so the new dog's video loops instead of sitting on a paused
+  // first frame (looks identical to the static photo to the user).
   const player = useVideoPlayer(dog.videoUrl ?? null, (p) => {
     p.loop = true;
     p.muted = true;
-    p.play();
   });
+
+  useEffect(() => {
+    if (dog.videoUrl) {
+      player.loop = true;
+      player.muted = true;
+      player.play();
+    }
+  }, [dog.videoUrl, player]);
+
+  const meta = `${dog.breed} · ${dog.size} · ${dog.energy} energy`;
 
   return (
     <View style={styles.card}>
-      <Image
-        source={{ uri: dog.photo }}
-        style={styles.photo}
-        contentFit="cover"
-        transition={200}
-      />
+      {/* Media wrapped in pointer-events:none Views so drag/click events
+          reach the SwipeDeck's gesture detector instead of being captured by
+          the underlying <img>/<video> DOM elements (which default to
+          pointer-events:auto on web and otherwise swallow mouse drags). */}
+      <View style={styles.fill} pointerEvents="none">
+        <Image
+          source={{ uri: dog.photo }}
+          style={styles.fill}
+          contentFit="cover"
+          transition={200}
+        />
+      </View>
 
       {dog.videoUrl && (
-        <VideoView
-          style={styles.photo}
-          player={player}
-          contentFit="cover"
-          allowsFullscreen={false}
-          nativeControls={false}
-        />
+        <View style={styles.fill} pointerEvents="none">
+          <VideoView
+            style={styles.video}
+            player={player}
+            contentFit="cover"
+            allowsFullscreen={false}
+            nativeControls={false}
+          />
+        </View>
       )}
 
       <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.15)', 'rgba(0,0,0,0.92)']}
-        locations={[0, 0.55, 1]}
-        style={styles.overlay}
+        colors={['transparent', 'rgba(0,0,0,0.85)']}
+        locations={[0.5, 1]}
+        style={styles.fill}
+        pointerEvents="none"
       />
 
       {dog.videoUrl && (
         <View style={styles.aiBadge}>
-          <Text style={styles.aiBadgeText}>✨ AI</Text>
+          <Text style={styles.aiBadgeText}>AI</Text>
         </View>
       )}
 
-      <View style={styles.distanceBadge}>
-        <Text style={styles.distanceText}>{dog.distanceMiles} mi</Text>
-      </View>
+      {dog.distanceMiles > 0 && (
+        <View style={styles.distancePill}>
+          <Text style={styles.distanceText}>{`${dog.distanceMiles}mi`}</Text>
+        </View>
+      )}
 
-      <View style={styles.content}>
+      <View style={styles.contentOverlay} pointerEvents="none">
         <View style={styles.nameRow}>
           <Text style={styles.name}>{dog.name}</Text>
           <Text style={styles.age}>{dog.ageYears}</Text>
         </View>
 
-        <Text style={styles.breed}>
-          {dog.breed} · {dog.size} · {dog.energy} energy
+        <Text style={styles.meta} numberOfLines={1} ellipsizeMode="tail">
+          {meta}
         </Text>
 
         <Text style={styles.bio} numberOfLines={2}>
           {dog.bio}
         </Text>
-
-        <View style={styles.tagRow}>
-          {dog.tags.slice(0, 3).map((tag) => (
-            <View key={tag} style={styles.tag}>
-              <Text style={styles.tagText}>{tag}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.owner}>
-          <View style={styles.ownerDot} />
-          <Text style={styles.ownerText}>
-            with {dog.ownerName} · {dog.ownerBio}
-          </Text>
-        </View>
       </View>
     </View>
   );
@@ -89,123 +98,94 @@ export function DogCard({ dog }: Props) {
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    borderRadius: 24,
-    backgroundColor: '#1a1a20',
+    backgroundColor: colors.surface,
+    borderRadius: radii.cardLarge,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 8,
   },
-  photo: {
+  fill: {
     ...StyleSheet.absoluteFillObject,
   },
-  overlay: {
+  // The native <video> element on web ignores inset:0 alone for sizing;
+  // explicit width/height force it to match the parent card box so the
+  // 9:16 AI video doesn't render at intrinsic 720×1280 and overflow.
+  video: {
     ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
   },
   aiBadge: {
     position: 'absolute',
     top: 16,
     left: 16,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.25)',
+    width: 28,
+    height: 28,
+    borderRadius: radii.pill,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   aiBadgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontFamily: fonts.monoBold,
+    fontSize: 9,
+    letterSpacing: tracking.mono,
+    color: colors.accentInk,
+    textTransform: 'uppercase',
   },
-  distanceBadge: {
+  distancePill: {
     position: 'absolute',
     top: 16,
     right: 16,
     backgroundColor: 'rgba(0,0,0,0.55)',
-    paddingHorizontal: 12,
+    borderRadius: radii.pill,
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 999,
   },
   distanceText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.text,
+    letterSpacing: tracking.mono,
   },
-  content: {
+  contentOverlay: {
     position: 'absolute',
-    bottom: 0,
     left: 0,
     right: 0,
-    padding: 20,
-    gap: 8,
+    bottom: 0,
+    padding: 24,
+    paddingBottom: 28,
   },
   nameRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 10,
+    alignItems: 'baseline',
+    gap: 8,
   },
   name: {
-    color: '#fff',
-    fontSize: 34,
-    fontWeight: '800',
-    letterSpacing: -0.5,
+    fontFamily: fonts.displayHeavy,
+    fontSize: 36,
+    lineHeight: 38,
+    color: colors.text,
+    letterSpacing: tracking.tightDisplay,
   },
   age: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: '400',
-    marginBottom: 4,
+    fontFamily: fonts.mono,
+    fontSize: 18,
+    color: colors.textSoft,
+    letterSpacing: tracking.mono,
+    alignSelf: 'baseline',
   },
-  breed: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 15,
-    fontWeight: '500',
+  meta: {
+    marginTop: 4,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 14,
+    color: colors.textSoft,
+    letterSpacing: tracking.body,
+    lineHeight: 18,
   },
   bio: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 15,
-    lineHeight: 20,
-    marginTop: 4,
-  },
-  tagRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 6,
-  },
-  tag: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-  tagText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  owner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 8,
-    paddingTop: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.25)',
-  },
-  ownerDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#4ade80',
-  },
-  ownerText: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 13,
-    flex: 1,
+    marginTop: 12,
+    fontFamily: fonts.body,
+    fontSize: 14,
+    color: colors.textSoft,
+    lineHeight: 19,
   },
 });

@@ -8,6 +8,7 @@ export type Dog = {
   tags: string[];
   bio: string;
   photo: string;
+  photos: string[];
   /** AI-generated signature video. When set, the card auto-plays this loop instead of `photo`. */
   videoUrl?: string;
   ownerName: string;
@@ -15,6 +16,47 @@ export type Dog = {
   distanceMiles: number;
   isMatch?: boolean;
 };
+
+export type DogRow = {
+  id: string;
+  name: string;
+  breed: string;
+  birthdate: string | null;
+  size: 'Small' | 'Medium' | 'Large';
+  energy: 'Chill' | 'Medium' | 'High';
+  tags: string[] | null;
+  notes: string | null;
+  primary_photo_url: string | null;
+  photos: string[] | null;
+  ai_video_url: string | null;
+  ai_video_status: string | null;
+  owner: { display_name: string; bio: string | null } | null;
+};
+
+export function mapDogRowToCard(row: DogRow): Dog {
+  const ageYears = row.birthdate
+    ? Math.floor((Date.now() - new Date(row.birthdate).getTime()) / (365.25 * 24 * 3600 * 1000))
+    : 0;
+  const primary = row.primary_photo_url ?? '';
+  const photoList = (row.photos ?? []).filter((u) => !!u);
+  const photos = photoList.length > 0 ? photoList : (primary ? [primary] : []);
+  return {
+    id: row.id,
+    name: row.name,
+    breed: row.breed,
+    ageYears,
+    size: row.size,
+    energy: row.energy,
+    tags: row.tags ?? [],
+    bio: row.notes ?? '',
+    photo: primary,
+    photos,
+    videoUrl: row.ai_video_status === 'ready' ? (row.ai_video_url ?? undefined) : undefined,
+    ownerName: row.owner?.display_name ?? 'Dog Owner',
+    ownerBio: row.owner?.bio ?? '',
+    distanceMiles: 0,
+  };
+}
 
 export const demoDogs: Dog[] = [
   {

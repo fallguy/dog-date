@@ -101,46 +101,56 @@ Deno.serve(async (req) => {
     }
 
     if (falStatus === 'COMPLETED') {
-      // Fetch the result
+      // Fetch the result. The result endpoint can return 4xx with a JSON
+      // `detail` body when Fal flagged the prompt or didn't render a video
+      // (safety filter, "no_media_generated", etc.). In that case we MUST
+      // mark the job as failed — otherwise the client poller spins forever
+      // hitting the same doomed endpoint and the user's banner sits at
+      // "generating" indefinitely.
       const resultResp = await fetch(
         `https://queue.fal.run/${FAL_APP}/requests/${job.fal_request_id}`,
         { headers: { Authorization: `Key ${FAL_KEY}` } }
       );
-      if (!resultResp.ok) {
-        const errBody = await resultResp.text();
-        return jsonResponse(
-          { error: `Fal result fetch failed: ${resultResp.status} ${errBody}` },
-          500
-        );
+      const resultText = await resultResp.text();
+      let result: any = null;
+      try {
+        result = JSON.parse(resultText);
+      } catch {
+        // non-JSON response; treat as failure with the raw text as the error
       }
-      const result: any = await resultResp.json();
       const videoUrl: string | undefined = result?.video?.url;
-      if (!videoUrl) {
-        return jsonResponse(
-          { error: `Fal returned no video URL: ${JSON.stringify(result)}` },
-          500
-        );
+
+      if (resultResp.ok && videoUrl) {
+        await adminClient
+          .from('dogs')
+          .update({ ai_video_url: videoUrl, ai_video_status: 'ready' })
+          .eq('id', job.dog_id);
+        await adminClient
+          .from('video_jobs')
+          .update({ status: 'ready', completed_at: new Date().toISOString() })
+          .eq('id', job.id);
+        return jsonResponse({ status: 'ready', video_url: videoUrl });
       }
 
-      // Persist on dog row
+      // Fal said COMPLETED but the result is unusable. Persist failure so the
+      // banner flips to 'failed' and the poller stops.
+      const errorDetail =
+        result?.detail?.[0]?.msg ??
+        (typeof result?.detail === 'string' ? result.detail : null) ??
+        `Fal completed without media (status ${resultResp.status})`;
       await adminClient
         .from('dogs')
-        .update({
-          ai_video_url: videoUrl,
-          ai_video_status: 'ready',
-        })
+        .update({ ai_video_status: 'failed' })
         .eq('id', job.dog_id);
-
-      // Persist on job row
       await adminClient
         .from('video_jobs')
         .update({
-          status: 'ready',
+          status: 'failed',
+          error: errorDetail,
           completed_at: new Date().toISOString(),
         })
         .eq('id', job.id);
-
-      return jsonResponse({ status: 'ready', video_url: videoUrl });
+      return jsonResponse({ status: 'failed', error: errorDetail });
     }
 
     // Anything else (errors): mark failed

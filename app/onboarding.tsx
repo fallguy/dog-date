@@ -5,6 +5,7 @@ import { Redirect, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -18,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/lib/auth-store';
 import type { Database } from '@/lib/database.types';
+import { requestLocation } from '@/lib/location';
 import { useMyDog } from '@/lib/queries/useMyDog';
 import { uploadDogPhoto } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
@@ -103,6 +105,15 @@ export default function OnboardingScreen() {
       const userId = session.user.id;
       let dogId: string;
 
+      // Best-effort: capture location for nearby search. Don't block on denial.
+      const loc = await requestLocation();
+      if (loc) {
+        await supabase
+          .from('profiles')
+          .update({ lat: loc.lat, lng: loc.lng })
+          .eq('id', userId);
+      }
+
       // 1. Upsert by owner_id (the unique constraint). This handles both
       //    the fresh-create case and the "previous attempt failed
       //    mid-flight, retry" case without crashing on the unique index.
@@ -152,6 +163,7 @@ export default function OnboardingScreen() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Something went wrong';
       setError(msg);
+      Alert.alert("Couldn't save", msg);
       setBusy(false);
     }
   };

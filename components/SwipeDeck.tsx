@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { forwardRef, useCallback, useImperativeHandle, useState } from 'react';
 import { Dimensions, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -15,8 +15,14 @@ import { DogCard } from '@/components/DogCard';
 import type { Dog } from '@/lib/demo-dogs';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.28;
+// Lower threshold so a small mouse drag in the web preview also triggers a
+// swipe; on touch devices this still feels natural.
+const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.18;
 const SWIPE_OUT_DURATION = 260;
+
+export type SwipeDeckHandle = {
+  swipe: (direction: 'like' | 'pass') => void;
+};
 
 type Props = {
   dogs: Dog[];
@@ -24,7 +30,10 @@ type Props = {
   onDeckEmpty?: () => void;
 };
 
-export function SwipeDeck({ dogs, onSwiped, onDeckEmpty }: Props) {
+export const SwipeDeck = forwardRef<SwipeDeckHandle, Props>(function SwipeDeck(
+  { dogs, onSwiped, onDeckEmpty },
+  ref
+) {
   const [index, setIndex] = useState(0);
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -44,6 +53,21 @@ export function SwipeDeck({ dogs, onSwiped, onDeckEmpty }: Props) {
     },
     [dogs, index, onDeckEmpty, onSwiped, translateX, translateY]
   );
+
+  const flickOut = useCallback(
+    (direction: 'like' | 'pass') => {
+      translateX.value = withTiming(
+        direction === 'like' ? SCREEN_WIDTH * 1.4 : -SCREEN_WIDTH * 1.4,
+        { duration: SWIPE_OUT_DURATION },
+        () => {
+          runOnJS(advance)(direction);
+        }
+      );
+    },
+    [advance, translateX]
+  );
+
+  useImperativeHandle(ref, () => ({ swipe: flickOut }), [flickOut]);
 
   const pan = Gesture.Pan()
     .onUpdate((e) => {
@@ -142,7 +166,7 @@ export function SwipeDeck({ dogs, onSwiped, onDeckEmpty }: Props) {
       </GestureDetector>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   root: {

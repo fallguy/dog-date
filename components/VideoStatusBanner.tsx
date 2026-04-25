@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-store';
 import { useLatestPendingJob } from '@/lib/hooks/useVideoPoller';
 import { useNotifications } from '@/lib/notifications-store';
 import { useMyDog } from '@/lib/queries/useMyDog';
+import { colors, fonts, radii, tracking } from '@/lib/theme';
 
 type BannerVariant = 'generating' | 'ready' | 'failed';
 
@@ -82,33 +83,50 @@ export function VideoStatusBanner() {
           pressed && variant !== 'generating' && { opacity: 0.85 },
         ]}
       >
-        <Text style={styles.icon}>
-          {variant === 'generating' ? '✨' : variant === 'ready' ? '✨' : '⚠️'}
-        </Text>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title}>
-            {variant === 'generating'
-              ? `Generating ${dog.name}'s video…`
-              : variant === 'ready'
-                ? `${dog.name}'s video is ready!`
-                : `Couldn't make ${dog.name}'s video`}
-          </Text>
-          <Text style={styles.subtitle}>
-            {variant === 'generating'
-              ? `${elapsedLabel} — keep swiping, we'll let you know when it's done`
-              : variant === 'ready'
-                ? 'Tap to preview'
-                : 'Tap to try a different prompt'}
-          </Text>
-        </View>
+        {variant === 'generating' && (
+          <>
+            <Text style={styles.bodyText} numberOfLines={1}>
+              {`${dog.name} is becoming a star…`}
+            </Text>
+            <Text style={styles.counter}>{elapsedLabel}</Text>
+          </>
+        )}
+
         {variant === 'ready' && (
-          <Pressable
-            onPress={handleDismiss}
-            hitSlop={12}
-            style={({ pressed }) => [styles.dismiss, pressed && { opacity: 0.55 }]}
-          >
-            <Text style={styles.dismissText}>✕</Text>
-          </Pressable>
+          <>
+            <Text style={[styles.bodyText, { flex: 1 }]} numberOfLines={1}>
+              {`${dog.name}'s video is ready.`}
+            </Text>
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation();
+                setPreviewOpen(true);
+              }}
+              hitSlop={8}
+              style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+            >
+              <Text style={styles.previewLink}>Preview →</Text>
+            </Pressable>
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation();
+                handleDismiss();
+              }}
+              hitSlop={12}
+              style={({ pressed }) => [styles.dismiss, pressed && { opacity: 0.55 }]}
+            >
+              <Text style={styles.dismissText}>×</Text>
+            </Pressable>
+          </>
+        )}
+
+        {variant === 'failed' && (
+          <>
+            <Text style={[styles.bodyText, { flex: 1 }]} numberOfLines={1}>
+              {`${dog.name}'s video didn't generate.`}
+            </Text>
+            <Text style={styles.retryLink}>Retry</Text>
+          </>
         )}
       </Pressable>
 
@@ -129,49 +147,57 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    borderRadius: 14,
+    borderRadius: radii.card,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     borderWidth: 1,
   },
   bannerGenerating: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: colors.surface,
+    borderColor: colors.divider,
   },
   bannerReady: {
-    backgroundColor: 'rgba(74, 222, 128, 0.16)', // green-400 @ 16%
-    borderColor: 'rgba(74, 222, 128, 0.55)',
+    backgroundColor: colors.surface,
+    borderColor: colors.accent,
   },
   bannerFailed: {
-    backgroundColor: 'rgba(248, 113, 113, 0.14)', // red-400 @ 14%
-    borderColor: 'rgba(248, 113, 113, 0.55)',
+    backgroundColor: colors.surface,
+    borderColor: colors.pass,
   },
-  icon: {
-    fontSize: 22,
-  },
-  title: {
-    color: '#fff',
+  bodyText: {
+    color: colors.text,
+    fontFamily: fonts.bodyMedium,
     fontSize: 14,
-    fontWeight: '700',
+    flex: 1,
   },
-  subtitle: {
-    color: 'rgba(255,255,255,0.75)',
+  counter: {
+    color: colors.textSoft,
+    fontFamily: fonts.mono,
     fontSize: 12,
-    marginTop: 2,
     fontVariant: ['tabular-nums'],
+    letterSpacing: tracking.mono,
+  },
+  previewLink: {
+    color: colors.accent,
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+  },
+  retryLink: {
+    color: colors.pass,
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
   },
   dismiss: {
     width: 24,
     height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   dismissText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
+    color: colors.textMute,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 18,
+    lineHeight: 18,
   },
 });
