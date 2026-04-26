@@ -53,7 +53,7 @@ const assignments = [
   { ownerId: '11111111-1111-1111-1111-111111111107', scenario: 'astronaut' },    // Kobe
   { ownerId: '11111111-1111-1111-1111-111111111108', scenario: 'dj' },           // Waffles
   { ownerId: '11111111-1111-1111-1111-111111111109', scenario: 'horse-rider' },  // Sir Reginald
-  { ownerId: '11111111-1111-1111-1111-111111111110', scenario: 'lemonade' },     // Snickerdoodle
+  { ownerId: '11111111-1111-1111-1111-111111111110', scenario: 'astronaut' },    // Snickerdoodle (lemonade tripped Veo safety; astronaut has worked for similar dogs)
   { ownerId: '11111111-1111-1111-1111-111111111111', scenario: 'frisbee' },      // Juniper-Belle
 ].map((a) => ({ ...a, prompt: PROMPTS[a.scenario] }));
 
