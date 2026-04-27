@@ -44,7 +44,7 @@ export default function GenerateVideoScreen() {
 
   const handleSurpriseMe = () => {
     const picked = pickScenario(dog.id);
-    setPrompt(picked.promptTemplate(dog.breed));
+    setPrompt(picked.prompt);
     setScenario(picked.id);
   };
 

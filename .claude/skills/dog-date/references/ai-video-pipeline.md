@@ -135,6 +135,12 @@ Tapping `Preview →` opens `VideoPreviewModal` and calls `markSeen(url)` so the
 
 The mm:ss timer reads `started_at` from the latest pending `video_jobs` row. If you find the timer ticking forever (>5 min), there's a stale `pending` job somewhere that fal-poll never resolved. Studio (http://localhost:54323) shows the table; check `fal_request_id` and curl the Fal status URL with the FAL_KEY to see what Fal thinks. Common cause: wrong status URL (see "Two URL shapes" above).
 
+## After editing an edge function, restart `functions serve`
+
+`supabase functions serve --env-file ...` reads the env file once at startup. When you edit a function file, the CLI hot-reloads the Deno worker — but **doesn't re-read the env file**. The new worker has no `FAL_KEY`, so the function returns 500 with `Server misconfigured: FAL_KEY missing`. Symptom from the client: regenerate-video flow appears to fail with a 500 immediately, and the user has no idea why.
+
+Fix: kill the running `functions serve` process and restart it with the same flags. Confirm the env loaded by hitting any function with a fake auth header — if you get `{"error":"Invalid token"}` you're fine; if you get `Server misconfigured: FAL_KEY missing` the env still didn't take.
+
 ## "COMPLETED" doesn't mean "succeeded"
 
 Fal's status API returns `COMPLETED` for both successful generations and failures-after-completion (e.g. safety-filter rejection, `no_media_generated`). The status endpoint says COMPLETED; the result endpoint returns a 4xx with a `detail` body. **`fal-poll` must treat "COMPLETED + no `result.video.url`" as a failure** — write `ai_video_status = 'failed'` to the dog row, `status = 'failed'` to the job row, and capture the error detail. If you don't, the client poller spins forever (~12 hits per minute) on a doomed endpoint, the banner sits at "generating", and the user never gets a Retry option.

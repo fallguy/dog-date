@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// One-shot: generate AI videos for the first 3 demo dogs (Biscuit, Pickle, Juno)
-// so the swipe deck shows looping AI videos for other people's dogs.
-// Costs ~$0.30 × 3 = ~$0.90. Re-running skips dogs that already have a video.
+// One-shot: generate AI videos for all 11 demo dogs so the swipe deck shows
+// looping AI videos for other people's dogs.
+// Costs ~$0.30 × 11 = ~$3.30. Re-running skips dogs that already have a video.
 
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
@@ -18,29 +18,32 @@ const DB_URL = 'postgres://postgres:postgres@localhost:54322/postgres';
 const FAL_MODEL = 'fal-ai/veo3.1/lite/image-to-video';
 const FAL_APP = 'fal-ai/veo3.1';
 
+// Photo-led prompts — see lib/video-scenarios.ts for the rationale (the photo
+// is Veo's seed image; substituting the user-typed breed into the prompt was
+// causing safety-filter rejections for unusual or non-standard breed strings).
 const PROMPTS = {
-  pilot: (breed) =>
-    `A ${breed} dog wearing aviator goggles and a leather flight helmet, piloting a tiny vintage propeller airplane through fluffy clouds, cinematic close-up, golden hour lighting, viral social media style, 5 seconds`,
-  chef: (breed) =>
-    `A ${breed} dog wearing a tall white chef hat, busy in a cozy kitchen flipping a small pancake in a pan, steam rising, warm soft lighting, viral social media style, 5 seconds`,
-  surfer: (breed) =>
-    `A ${breed} dog confidently surfing on a small surfboard riding a sunlit ocean wave, salt spray, ears flapping in the wind, cinematic, viral social media style, 5 seconds`,
-  yoga: (breed) =>
-    `A ${breed} dog calmly holding a yoga pose on a colorful mat in a sunlit studio, soft natural light from the window, peaceful expression, cinematic, viral social media style, 5 seconds`,
-  skater: (breed) =>
-    `A ${breed} dog confidently skateboarding through a sunlit suburban street, paws on the deck, ears flapping, golden hour lighting, viral social media style, 5 seconds`,
-  pianist: (breed) =>
-    `A ${breed} dog sitting at a grand piano, paws on the keys, gently swaying with the music, warm spotlight in a cozy concert hall, cinematic, viral social media style, 5 seconds`,
-  astronaut: (breed) =>
-    `A ${breed} dog wearing a tiny custom astronaut suit, floating gently inside a spaceship cockpit with stars visible through the window, cinematic, viral social media style, 5 seconds`,
-  dj: (breed) =>
-    `A ${breed} dog wearing oversized headphones, paws on a glowing DJ turntable, colorful club lights pulsing, smoke effects, viral social media style, 5 seconds`,
-  'horse-rider': (breed) =>
-    `A ${breed} dog confidently riding a small pony through a green meadow at sunset, ears flapping in the breeze, cinematic, viral social media style, 5 seconds`,
-  lemonade: (breed) =>
-    `A ${breed} dog behind a small wooden lemonade stand on a sunny suburban sidewalk, a wagging tail, colorful sign, kids approaching, warm cinematic lighting, viral social media style, 5 seconds`,
-  frisbee: (breed) =>
-    `A ${breed} dog mid-leap catching a frisbee at a sunlit beach, sand spray under paws, ocean in the background, cinematic slow motion, viral social media style, 5 seconds`,
+  pilot:
+    'The dog wearing aviator goggles and a leather flight helmet, piloting a tiny vintage propeller airplane through fluffy clouds, cinematic close-up, golden hour lighting, viral social media style, 5 seconds',
+  chef:
+    'The dog wearing a tall white chef hat, busy in a cozy kitchen flipping a small pancake in a pan, steam rising, warm soft lighting, viral social media style, 5 seconds',
+  surfer:
+    'The dog confidently surfing on a small surfboard riding a sunlit ocean wave, salt spray, ears flapping in the wind, cinematic, viral social media style, 5 seconds',
+  yoga:
+    'The dog calmly holding a yoga pose on a colorful mat in a sunlit studio, soft natural light from the window, peaceful expression, cinematic, viral social media style, 5 seconds',
+  skater:
+    'The dog confidently skateboarding through a sunlit suburban street, paws on the deck, ears flapping, golden hour lighting, viral social media style, 5 seconds',
+  pianist:
+    'The dog sitting at a grand piano, paws on the keys, gently swaying with the music, warm spotlight in a cozy concert hall, cinematic, viral social media style, 5 seconds',
+  astronaut:
+    'The dog wearing a tiny custom astronaut suit, floating gently inside a spaceship cockpit with stars visible through the window, cinematic, viral social media style, 5 seconds',
+  dj:
+    'The dog wearing oversized headphones, paws on a glowing DJ turntable, colorful club lights pulsing, smoke effects, viral social media style, 5 seconds',
+  'horse-rider':
+    'The dog confidently riding a small pony through a green meadow at sunset, ears flapping in the breeze, cinematic, viral social media style, 5 seconds',
+  lemonade:
+    'The dog behind a small wooden lemonade stand on a sunny suburban sidewalk, a wagging tail, colorful sign, warm cinematic lighting, viral social media style, 5 seconds',
+  frisbee:
+    'The dog mid-leap catching a frisbee at a sunlit beach, sand spray under paws, ocean in the background, cinematic slow motion, viral social media style, 5 seconds',
 };
 
 const assignments = [
@@ -53,7 +56,7 @@ const assignments = [
   { ownerId: '11111111-1111-1111-1111-111111111107', scenario: 'astronaut' },    // Kobe
   { ownerId: '11111111-1111-1111-1111-111111111108', scenario: 'dj' },           // Waffles
   { ownerId: '11111111-1111-1111-1111-111111111109', scenario: 'horse-rider' },  // Sir Reginald
-  { ownerId: '11111111-1111-1111-1111-111111111110', scenario: 'astronaut' },    // Snickerdoodle (lemonade tripped Veo safety; astronaut has worked for similar dogs)
+  { ownerId: '11111111-1111-1111-1111-111111111110', scenario: 'lemonade' },     // Snickerdoodle
   { ownerId: '11111111-1111-1111-1111-111111111111', scenario: 'frisbee' },      // Juniper-Belle
 ].map((a) => ({ ...a, prompt: PROMPTS[a.scenario] }));
 
@@ -87,7 +90,7 @@ for (const a of assignments) {
     breed,
     name,
     scenario: a.scenario,
-    prompt: a.prompt(breed),
+    prompt: a.prompt,
   });
 }
 
@@ -115,6 +118,9 @@ async function submitVideo(dog) {
       image_url: dataUri,
       prompt: dog.prompt,
       aspect_ratio: '9:16',
+      // Veo's default safety_tolerance ('4') was rejecting Pickle's photo across
+      // scenarios with no_media_generated. '6' is the most permissive level.
+      safety_tolerance: '6',
     }),
   });
   if (!r.ok) {
