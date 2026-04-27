@@ -1,8 +1,8 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 
 import type { Dog } from '@/lib/demo-dogs';
 import { colors, fonts, radii, tracking } from '@/lib/theme';
@@ -21,6 +21,13 @@ export function DogCard({ dog }: Props) {
     p.muted = true;
   });
 
+  // On web, react-native-web's View is the DOM container; use it to find the
+  // <video> child and force autoplay attrs. expo-video web's player.play()
+  // alone does not reliably start playback on initial mount — the underlying
+  // element auto-pauses after a brief load. Setting muted+playsinline as
+  // attributes (not just properties) and calling .play() directly fixes it.
+  const cardRef = useRef<View>(null);
+
   useEffect(() => {
     if (dog.videoUrl) {
       player.loop = true;
@@ -29,10 +36,31 @@ export function DogCard({ dog }: Props) {
     }
   }, [dog.videoUrl, player]);
 
+  useEffect(() => {
+    if (!dog.videoUrl || Platform.OS !== 'web') return;
+    let cancelled = false;
+    const tryPlay = () => {
+      if (cancelled) return;
+      const node = cardRef.current as unknown as HTMLElement | null;
+      const video = node?.querySelector('video');
+      if (!video) {
+        requestAnimationFrame(tryPlay);
+        return;
+      }
+      video.muted = true;
+      video.setAttribute('playsinline', '');
+      void video.play().catch(() => {});
+    };
+    tryPlay();
+    return () => {
+      cancelled = true;
+    };
+  }, [dog.videoUrl]);
+
   const meta = `${dog.breed} · ${dog.size} · ${dog.energy} energy`;
 
   return (
-    <View style={styles.card}>
+    <View ref={cardRef} style={styles.card}>
       {/* Media wrapped in pointer-events:none Views so drag/click events
           reach the SwipeDeck's gesture detector instead of being captured by
           the underlying <img>/<video> DOM elements (which default to
