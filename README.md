@@ -1,4 +1,4 @@
-# Dog Date
+# Dog Date (hi andrew)
 
 Tinder-style app for arranging dog playdates. Dog-first profiles, light owner info, in-app chat for matches.
 
