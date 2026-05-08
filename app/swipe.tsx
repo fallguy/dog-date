@@ -1,11 +1,11 @@
 import { Image } from 'expo-image';
 import { Redirect, router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MatchModal } from '@/components/MatchModal';
-import { SwipeDeck, type SwipeDeckHandle } from '@/components/SwipeDeck';
+import { SwipeDeck } from '@/components/SwipeDeck';
 import { VideoStatusBanner } from '@/components/VideoStatusBanner';
 import { useAuth } from '@/lib/auth-store';
 import type { Dog } from '@/lib/demo-dogs';
@@ -21,7 +21,6 @@ export default function SwipeScreen() {
   const [matchedDog, setMatchedDog] = useState<Dog | null>(null);
   const [matchedMatchId, setMatchedMatchId] = useState<string | null>(null);
   const insertSwipe = useInsertSwipe();
-  const deckRef = useRef<SwipeDeckHandle | null>(null);
   const [myLatLng, setMyLatLng] = useState<LatLng | undefined>(undefined);
   useEffect(() => {
     requestLocation().then((loc) => {
@@ -116,27 +115,8 @@ export default function SwipeScreen() {
       <VideoStatusBanner />
 
       <View style={styles.deck}>
-        <SwipeDeck ref={deckRef} dogs={nearbyDogs} onSwiped={handleSwiped} />
+        <SwipeDeck dogs={nearbyDogs} onSwiped={handleSwiped} />
       </View>
-
-      {nearbyDogs.length > 0 ? (
-        <View style={styles.actionRow}>
-          <Pressable
-            style={({ pressed }) => [styles.actionButton, styles.passButton, pressed && styles.actionPressed]}
-            onPress={() => deckRef.current?.swipe('pass')}
-            accessibilityLabel="Pass"
-          >
-            <Text style={styles.passLabel}>Pass</Text>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.actionButton, styles.likeButton, pressed && styles.actionPressed]}
-            onPress={() => deckRef.current?.swipe('like')}
-            accessibilityLabel="Like"
-          >
-            <Text style={styles.likeLabel}>Like</Text>
-          </Pressable>
-        </View>
-      ) : null}
 
       <MatchModal
         visible={!!matchedDog}
@@ -244,42 +224,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 4,
-    paddingBottom: 8,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
     paddingBottom: 16,
-    gap: 12,
-  },
-  actionButton: {
-    flex: 1,
-    paddingVertical: 16,
-    borderRadius: radii.frame,
-    alignItems: 'center',
-    borderWidth: 1,
-  },
-  passButton: {
-    backgroundColor: colors.surface,
-    borderColor: colors.divider,
-  },
-  likeButton: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  passLabel: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 15,
-    color: colors.textSoft,
-    letterSpacing: tracking.body,
-  },
-  likeLabel: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 15,
-    color: colors.accentInk,
-    letterSpacing: tracking.body,
-  },
-  actionPressed: {
-    opacity: 0.7,
   },
 });

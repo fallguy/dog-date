@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEffect } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -9,10 +10,11 @@ type Props = {
   visible: boolean;
   videoUrl: string | null;
   dogName: string;
+  scenario?: string | null;
   onClose: () => void;
 };
 
-export function VideoPreviewModal({ visible, videoUrl, onClose }: Props) {
+export function VideoPreviewModal({ visible, videoUrl, dogName, scenario, onClose }: Props) {
   // The init callback only runs once on player creation — so we set flags
   // here and kick playback from a separate effect that re-fires on open.
   const player = useVideoPlayer(videoUrl, (p) => {
@@ -30,6 +32,13 @@ export function VideoPreviewModal({ visible, videoUrl, onClose }: Props) {
 
   if (!videoUrl) return null;
 
+  const caption = scenario ? `${dogName} as ${scenario}.` : 'Your video is ready.';
+
+  const handleTryAgain = () => {
+    onClose();
+    router.push('/generate-video');
+  };
+
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <SafeAreaView style={styles.backdrop} edges={['top', 'bottom']}>
@@ -38,7 +47,7 @@ export function VideoPreviewModal({ visible, videoUrl, onClose }: Props) {
             <VideoView
               style={styles.video}
               player={player}
-              contentFit="cover"
+              contentFit="contain"
               allowsFullscreen={false}
               nativeControls={false}
             />
@@ -51,27 +60,33 @@ export function VideoPreviewModal({ visible, videoUrl, onClose }: Props) {
               onPress={onClose}
               hitSlop={12}
               style={({ pressed }) => [styles.close, pressed && { opacity: 0.55 }]}
+              accessibilityRole="button"
+              accessibilityLabel="Close preview"
             >
               <Text style={styles.closeText}>×</Text>
             </Pressable>
           </View>
 
           <View style={styles.body}>
-            <Text style={styles.title}>Looks great?</Text>
-            <Text style={styles.caption}>Your video is ready to share.</Text>
+            <Text style={styles.title}>Your AI video</Text>
+            <Text style={styles.caption}>{caption}</Text>
 
             <Pressable
               style={({ pressed }) => [styles.primaryButton, pressed && { opacity: 0.75 }]}
               onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Done"
             >
-              <Text style={styles.primaryText}>Looks great</Text>
+              <Text style={styles.primaryText}>Done</Text>
             </Pressable>
 
             <Pressable
               style={({ pressed }) => [styles.secondaryLink, pressed && { opacity: 0.6 }]}
-              onPress={onClose}
+              onPress={handleTryAgain}
+              accessibilityRole="button"
+              accessibilityLabel="Try again"
             >
-              <Text style={styles.secondaryLinkText}>Generate another</Text>
+              <Text style={styles.secondaryLinkText}>Try again</Text>
             </Pressable>
           </View>
         </View>
@@ -89,16 +104,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   card: {
+    flex: 1,
     backgroundColor: colors.surface,
     borderRadius: radii.cardLarge,
-    padding: 0,
     overflow: 'hidden',
     width: '100%',
     maxWidth: 380,
   },
+  // Fills available vertical space; the video uses contentFit="contain" so
+  // the full 9:16 frame is preserved (letterboxes on wide viewports, fills
+  // the box on phone-shaped ones). No hard aspect ratio means the body block
+  // below is always visible regardless of viewport height.
   videoWrap: {
-    width: '100%',
-    aspectRatio: 9 / 16,
+    flex: 1,
     backgroundColor: colors.bg,
     position: 'relative',
   },

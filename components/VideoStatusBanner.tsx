@@ -134,6 +134,7 @@ export function VideoStatusBanner() {
         visible={previewOpen}
         videoUrl={dog.ai_video_url}
         dogName={dog.name}
+        scenario={dog.ai_video_scenario}
         onClose={handlePreviewClose}
       />
     </>

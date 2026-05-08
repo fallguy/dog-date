@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { DogCard } from '@/components/DogCard';
 import type { Dog } from '@/lib/demo-dogs';
 
@@ -66,5 +66,50 @@ describe('DogCard', () => {
     expect(img).not.toBeNull();
     const parentClass = img!.parentElement?.className ?? '';
     expect(parentClass).toMatch(/pointerEvents/);
+  });
+
+  // Default state: minimal front. Tags/bio/owner are rendered into the
+  // off-screen sheet for animation continuity, but the chevron's
+  // aria-expanded is the source of truth for state.
+  it('starts collapsed (chevron aria-expanded=false)', () => {
+    render(<DogCard dog={fixture} />);
+    const chevron = screen.getByLabelText('Show details');
+    expect(chevron.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('expands when the chevron is tapped', () => {
+    render(<DogCard dog={fixture} />);
+    fireEvent.click(screen.getByLabelText('Show details'));
+    const chevron = screen.getByLabelText('Hide details');
+    expect(chevron.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('renders tags + bio + owner content (visible only when expanded)', () => {
+    render(
+      <DogCard
+        dog={{
+          ...fixture,
+          tags: ['fetch-obsessed', 'loves water'],
+          bio: 'tennis ball fanatic',
+          ownerName: 'Maya',
+          ownerBio: 'Morning walker, south end.',
+        }}
+      />,
+    );
+    // Sheet content is in the DOM (off-screen) so users tab into it after
+    // expanding. The chips/bio/owner all exist regardless of expand state.
+    expect(screen.getByText('fetch-obsessed')).toBeTruthy();
+    expect(screen.getByText('loves water')).toBeTruthy();
+    expect(screen.getByText('tennis ball fanatic')).toBeTruthy();
+    expect(screen.getByText('Maya')).toBeTruthy();
+    expect(screen.getByText(/Morning walker/)).toBeTruthy();
+  });
+
+  it('collapses when the chevron is tapped again', () => {
+    render(<DogCard dog={fixture} />);
+    fireEvent.click(screen.getByLabelText('Show details'));
+    fireEvent.click(screen.getByLabelText('Hide details'));
+    expect(screen.getByLabelText('Show details').getAttribute('aria-expanded'))
+      .toBe('false');
   });
 });
